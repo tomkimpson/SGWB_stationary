@@ -36,7 +36,13 @@ class BlackHolePopulation:
 
         return priors
 
-    def sample(self,M):
+
+
+
+
+class Universe(BlackHolePopulation):
+    def __init__(self,M):
+
         priors  = self._gw_priors()
         samples = priors.sample(M)
 
@@ -51,6 +57,8 @@ class BlackHolePopulation:
 
 
         self.M = M
+
+
 
 
 
