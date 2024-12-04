@@ -76,9 +76,6 @@ class GW:
 
 
 #These are all pure functions which exist outside of the class
-
-
-# @jit(nopython=True)
 def _principal_axes(θ,φ,ψ):
 
 
@@ -118,7 +115,6 @@ def polarisation_tensors(m, n):
 """
 Get the hplus and hcross amplitudes
 """
-# @njit()
 def h_amplitudes(h,ι): 
     return h*(1.0 + cos(ι)**2),h*(-2.0*cos(ι)) #hplus,hcross
 

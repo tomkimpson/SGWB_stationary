@@ -2,9 +2,14 @@
 import pandas as pd 
 import numpy as np 
 from numpy import sin, cos
+
+
+
+
+
 class PTA:
     """ 
-    Define a PTA composed of 2 pulsars, and the obs plan
+    Define a PTA composed of 2 pulsars, and the observation plan
     """
 
 
