@@ -41,11 +41,12 @@ def main():
     # Check for GPU availability
     devices = jax.devices()
     print(f"  Available devices: {[str(d) for d in devices]}")
-    
-    if any("gpu" in str(device).lower() for device in devices):
+    if any(d.platform == 'gpu' for d in jax.devices()):
         print("  ✓ GPU detected - JAX will use GPU acceleration")
     else:
         print("  ⚠ No GPU detected - using CPU only")
+
+
     
     print(f"  Default backend: {jax.default_backend()}")
     print()
