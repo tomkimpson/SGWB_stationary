@@ -63,8 +63,13 @@ def plot_1d(t,array_1D,show_fig=True,save_fig=False):
 
     if save_fig:
         import os
+        from datetime import datetime
         os.makedirs('outputs', exist_ok=True)
-        plt.savefig('outputs/plot_1d.png', dpi=300, bbox_inches='tight')
+        # Generate unique ID using timestamp
+        unique_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'outputs/plot_1d_{unique_id}.png'
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"  Saved: {filename}")
     
     if show_fig:
         plt.show()
@@ -134,8 +139,13 @@ def plot_2d(t,array_2D,plot_points=False,num_contours=100,show_fig=True,save_fig
 
     if save_fig:
         import os
+        from datetime import datetime
         os.makedirs('outputs', exist_ok=True)
-        plt.savefig('outputs/plot_2d.png', dpi=300, bbox_inches='tight')
+        # Generate unique ID using timestamp
+        unique_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'outputs/plot_2d_{unique_id}.png'
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"  Saved: {filename}")
     
     if show_fig:
         plt.show()

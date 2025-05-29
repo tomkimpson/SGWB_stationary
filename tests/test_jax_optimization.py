@@ -5,7 +5,7 @@ Test script to verify JAX optimization of compute_a() function
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import numpy as np
 import time

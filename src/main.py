@@ -13,6 +13,7 @@ Main components:
 """
 
 import numpy as np
+import jax
 import jax.numpy as jnp
 from tqdm import tqdm
 from BH_population import Universe
@@ -20,12 +21,34 @@ from PTA import PTA
 from calculate_gw import GW
 from plotting import plot_1d, plot_2d
 
+# Configure JAX for 64-bit precision
+jax.config.update("jax_enable_x64", True)
+
 def main():
     """Main SGWB analysis pipeline"""
     
     print("="*60)
     print("STOCHASTIC GRAVITATIONAL WAVE BACKGROUND ANALYSIS")
     print("="*60)
+    
+    # ==========================================
+    # JAX CONFIGURATION
+    # ==========================================
+    
+    print("JAX Configuration:")
+    print(f"  64-bit precision: {jax.config.jax_enable_x64}")
+    
+    # Check for GPU availability
+    devices = jax.devices()
+    print(f"  Available devices: {[str(d) for d in devices]}")
+    
+    if any("gpu" in str(device).lower() for device in devices):
+        print("  ✓ GPU detected - JAX will use GPU acceleration")
+    else:
+        print("  ⚠ No GPU detected - using CPU only")
+    
+    print(f"  Default backend: {jax.default_backend()}")
+    print()
     
     # ==========================================
     # SIMULATION PARAMETERS
@@ -44,7 +67,7 @@ def main():
     M = int(1e4)                   # Number of GW sources
     
     # Analysis parameters
-    num_realisations = 1000        # Number of universe realizations
+    num_realisations = int(1e2)    # Number of universe realizations
     pulsar_seed = 1                # Seed for pulsar selection
     
     print(f"Simulation Parameters:")

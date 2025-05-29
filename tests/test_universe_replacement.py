@@ -5,7 +5,7 @@ Test script to verify the replacement of Bilby with NumPy/SciPy
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import numpy as np
 from BH_population import Universe
