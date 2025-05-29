@@ -68,7 +68,7 @@ def main():
     M = int(1e4)                   # Number of GW sources
     
     # Analysis parameters
-    num_realisations = int(1e2)    # Number of universe realizations
+    num_realisations = int(2e4)    # Number of universe realizations
     pulsar_seed = 1                # Seed for pulsar selection
     
     print(f"Simulation Parameters:")
