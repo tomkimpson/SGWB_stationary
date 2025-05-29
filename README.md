@@ -18,4 +18,4 @@ The PDF of $\Omega$ is taken to be a power law with lower limit $1/T_{\rm obs}$,
 
 The code is written with JAX to enable JIT compilation and GPU processing.
 
-For $M=10^4$ and $2 \times 10^4$ universe realisations, we can compute $\langle a^{(n)}(t) a^{(n')}(t')\rangle (\tau)$ is ~2min on a GPU. 
+For $M=10^4$ and $2 \times 10^4$ universe realisations, we can compute $\langle a^{(n)}(t) a^{(n')}(t')\rangle (\tau)$ in ~2min on a GPU. 
