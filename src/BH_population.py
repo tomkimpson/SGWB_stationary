@@ -1,58 +1,72 @@
-import bilby 
-import numpy as np 
+import numpy as np
+from scipy import stats 
 
 class Universe:
     """ 
     Calculate the population of black holes which constitute the stochastic GW background.
     This involves randomly drawing 7 GW parameters (Ω,h,φ0,ψ,ι,α,δ) for M sources. 
-    We use the bilby package to do do the random sampling; note that bilby does not currently let a user seed the sampling process
-    Se e.g. https://git.ligo.org/lscsoft/bilby/-/blob/master/bilby/core/prior/analytical.py
+    Uses NumPy/SciPy for fast, seedable random sampling from the required distributions.
     """
 
 
-    def __init__(self,Ω_power_law_index,Ω_min,Ω_max,M):
+    def __init__(self,Ω_power_law_index,Ω_min,Ω_max,M,seed=None):
 
         #Assign arguments to class
         self.alpha = Ω_power_law_index
         self.Ω_min = Ω_min
         self.Ω_max = Ω_max
         self.M = M
+        
+        # Set random seed for reproducible results
+        if seed is not None:
+            np.random.seed(seed)
 
-        #Define priors for GW parameters and sample
-        priors  = self._gw_priors()
-        samples = priors.sample(M)
-
-        #Manually extract from the dictionary and make them attributes of the class - easier to handle later
-        self.Ω = samples['Ω']
-        self.h = samples['h']
-        self.φ0 = samples['φ0']
-        self.ψ = samples['ψ']
-        self.ι = samples['ι']
-        self.δ = samples['δ']
-        self.α = samples['α']
+        # Sample GW parameters directly using NumPy/SciPy
+        self.Ω = self._sample_power_law(self.alpha, self.Ω_min, self.Ω_max, M)
+        self.h = np.full(M, 1.0)  # Delta function at 1.0
+        self.φ0 = np.random.uniform(0.0, 2*np.pi, M)
+        self.ψ = np.random.uniform(0.0, np.pi, M)
+        self.ι = self._sample_sine(0.0, np.pi, M)
+        self.δ = self._sample_cosine(-np.pi/2, np.pi/2, M)
+        self.α = np.random.uniform(0.0, 2*np.pi, M)
 
 
     
 
 
-    def _gw_priors(self):
+    def _sample_power_law(self, alpha, minimum, maximum, size):
         """
-        Define the priors on the 7 GW parameters.
-        Pass 3 arguments: Ω_power_law_index,Ω_min,Ω_max which define the power law prior on Ω
-        Note that h has a unit delta function prior - all sources have the same unit amplitude
+        Sample from power law distribution: P(x) ∝ x^alpha
+        Using inverse CDF method for exact sampling
         """
-
-
-        priors = bilby.core.prior.PriorDict()
-        priors['Ω']  = bilby.core.prior.PowerLaw(alpha=self.alpha,minimum=self.Ω_min,maximum=self.Ω_max)
-        priors['h']  = bilby.core.prior.DeltaFunction(1.0)
-        priors['φ0'] = bilby.core.prior.Uniform(0.0, 2*np.pi)
-        priors['ψ']  = bilby.core.prior.Uniform(0.0, np.pi)
-        priors['ι']  = bilby.core.prior.Sine(0.0, np.pi)
-        priors['δ']  = bilby.core.prior.Cosine(-np.pi/2, np.pi/2)
-        priors['α']  = bilby.core.prior.Uniform(0.0, 2*np.pi)
-
-        return priors
+        if alpha == -1:
+            # Special case: log-uniform distribution
+            u = np.random.uniform(0, 1, size)
+            return minimum * (maximum/minimum)**u
+        else:
+            # General power law case
+            u = np.random.uniform(0, 1, size)
+            a1 = alpha + 1
+            return ((maximum**a1 - minimum**a1) * u + minimum**a1)**(1/a1)
+    
+    def _sample_sine(self, minimum, maximum, size):
+        """
+        Sample from sine distribution: P(x) ∝ sin(x)
+        Using inverse CDF method
+        """
+        u = np.random.uniform(0, 1, size)
+        # CDF of sin(x) from 0 to π is (1 - cos(x))/2
+        # For general interval [a,b]: use transformation
+        return np.arccos(np.cos(maximum) + u * (np.cos(minimum) - np.cos(maximum)))
+    
+    def _sample_cosine(self, minimum, maximum, size):
+        """
+        Sample from cosine distribution: P(x) ∝ cos(x)  
+        Using inverse CDF method for interval [-π/2, π/2]
+        """
+        u = np.random.uniform(0, 1, size)
+        # CDF of cos(x) from -π/2 to π/2 is (sin(x) + 1)/2
+        return np.arcsin(2*u - 1)
 
 
 

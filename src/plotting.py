@@ -1,57 +1,6 @@
 
-import numpy as np
-import sys 
-from tqdm import tqdm
-
-from PTA import PTA 
-from BH_population import Universe
-from calculate_gw import GW
 import matplotlib.pyplot as plt
-
-
-def _get_a_for_universe_i(Ω_power_law_index,Ω_min,Ω_max,M,seed,PTA):
-
-    #Create the universe
-    universe_i = Universe(Ω_power_law_index,Ω_min,Ω_max,M,seed) 
-    
-    #Given this universe and these pulsars, what is a(t)?
-    SGWB = GW(universe_i,PTA)
-    a = SGWB.compute_a_jax()
-
-
-    #Get the two timeseries corresponding to the two pulsars
-    a1 = a[:,0]
-    a2 = a[:,1]
-
-    #Calculate the 1D product
-    ac = a1[0]
-    product = ac*a2 
-
-    #Calculate the 2D product
-    outer_product = np.outer(a1,a2)
-
-    return product,outer_product
-
-
-def pipeline(Tobs,dt,pulsar_seed,num_realisations,α,Ω_min,Ω_max,M):
-
-    #Choose the pulsars
-    pulsars = PTA(Tobs=Tobs,dt=dt,seed=pulsar_seed)
-    num_times = len(pulsars.t)
-
-    array_1D = np.zeros((num_times,num_realisations)) #one timeseries for every seed. We will then average over this
-    array_2D = np.zeros((num_times,num_times)) #2D grid for a running sum
-
-    for i in tqdm(range(num_realisations)):
-        product,outer_product = _get_a_for_universe_i(α,Ω_min,Ω_max,M,i,pulsars)
-
-    array_1D[:,i] = product
-    array_2D += outer_product
-
-
-    return pulsars.t,array_1D,array_2D
-
-    
+import numpy as np
 
 
 
@@ -196,39 +145,6 @@ def plot_2d(t,array_2D,plot_points=False,num_contours=100,show_fig=True,save_fig
 
 
 
-
-
-
-
-
-
-
-#some useful quantities
-year = 3.154e7 # in seconds
-week = 604800  # in seconds
-
-#Read in command line arguments
-Tobs_years       = 10.0
-dt_weeks         = 1.0
-pulsar_seed      = 1
-num_realisations = 1000
-M                = 10000
-α                = -3.0 #Exponent of the power law for the PDF of Ω
-
-
-#Any necessary conversions
-Tobs        = Tobs_years*year 
-dt          = dt_weeks * week
-Ω_min       = 1/(Tobs) 
-Ω_max       = 1/(dt)
-
-#Run the pipeline 
-print(f"Creating {num_realisations} realisations of the stochastic GW background")
-print(f"Parameters of the BH probability distribution are α ={α}, Ω_min= {Ω_min}, Ω_max= {Ω_max}")
-t,array_1D,array_2D = pipeline(Tobs,dt,pulsar_seed,num_realisations,α,Ω_min,Ω_max,M)
-
-plot_1d(t,array_1D,show_fig=True,save_fig=True)
-plot_2d(t,array_2D,show_fig=True,save_fig=True)
 
 
 
