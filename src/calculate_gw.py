@@ -99,6 +99,39 @@ class GW:
             δ_jax, α_jax, ψ_jax, h_jax, ι_jax, Ω_jax, φ0_jax,
             q_jax, q_products_jax, t_jax, d_psr_jax
         )
+    
+    @classmethod
+    def compute_a_batch(cls, batch_universe_params, PTA):
+        """
+        Vectorized computation of a(t) for multiple universe realizations.
+        
+        Args:
+            batch_universe_params: Dict with keys ['Ω', 'δ', 'α', 'ψ', 'h', 'ι', 'φ0']
+                                 Each value has shape (num_realizations, M)
+            PTA: PTA instance with pulsar parameters
+        
+        Returns:
+            JAX array with shape (num_realizations, T, N)
+        """
+        # Convert to JAX arrays
+        batch_δ = jnp.array(batch_universe_params['δ'])
+        batch_α = jnp.array(batch_universe_params['α']) 
+        batch_ψ = jnp.array(batch_universe_params['ψ'])
+        batch_h = jnp.array(batch_universe_params['h'])
+        batch_ι = jnp.array(batch_universe_params['ι'])
+        batch_Ω = jnp.array(batch_universe_params['Ω'])
+        batch_φ0 = jnp.array(batch_universe_params['φ0'])
+        
+        # PTA parameters (same for all realizations)
+        q_jax = jnp.array(PTA.q.T)
+        q_products_jax = jnp.array(PTA.q_products)
+        t_jax = jnp.array(PTA.t)
+        d_psr_jax = jnp.array(PTA.d_psr)
+        
+        return _compute_a_batch_jax_compiled(
+            batch_δ, batch_α, batch_ψ, batch_h, batch_ι, batch_Ω, batch_φ0,
+            q_jax, q_products_jax, t_jax, d_psr_jax
+        )
 
 
 
@@ -224,4 +257,26 @@ def _compute_a_jax_compiled_simple(δ, α, ψ, h, ι, Ω, φ0, q, q_products, t,
 
 # JIT compile the function
 _compute_a_jax_compiled = jit(_compute_a_jax_compiled_simple)
+
+def _compute_a_batch_jax_compiled_simple(batch_δ, batch_α, batch_ψ, batch_h, batch_ι, batch_Ω, batch_φ0,
+                                        q, q_products, t, d_psr):
+    """
+    Batch-vectorized JAX version that processes multiple universe realizations simultaneously
+    
+    Args:
+        batch_*: Arrays with shape (num_realizations, M)
+        q, q_products, t, d_psr: PTA parameters (same for all realizations)
+    
+    Returns:
+        Array with shape (num_realizations, T, N)
+    """
+    
+    # Use vmap to vectorize over the realization dimension (axis 0)
+    vectorized_compute_a = vmap(_compute_a_jax_compiled_simple, in_axes=(0, 0, 0, 0, 0, 0, 0, None, None, None, None))
+    
+    return vectorized_compute_a(batch_δ, batch_α, batch_ψ, batch_h, batch_ι, batch_Ω, batch_φ0,
+                               q, q_products, t, d_psr)
+
+# JIT compile the batch function  
+_compute_a_batch_jax_compiled = jit(_compute_a_batch_jax_compiled_simple)
 

@@ -1,234 +1,157 @@
+#!/usr/bin/env python3
+"""
+Stochastic Gravitational Wave Background (SGWB) Analysis Pipeline
+
+This script computes the stochastic gravitational wave background from a population 
+of binary black holes and analyzes the cross-correlation signals in a pulsar timing array.
+
+Main components:
+- Universe: Population of M black hole binaries with random GW parameters
+- PTA: Pulsar timing array with N pulsars  
+- GW: Gravitational wave signal computation (JAX-optimized)
+- Analysis: Cross-correlation products and statistical analysis
+"""
 
 import numpy as np
-import sys 
+import jax.numpy as jnp
 from tqdm import tqdm
-
-from PTA import PTA 
 from BH_population import Universe
+from PTA import PTA 
 from calculate_gw import GW
-import matplotlib.pyplot as plt
+from plotting import plot_1d, plot_2d
 
-
-def _get_a_for_universe_i(Ω_power_law_index,Ω_min,Ω_max,M,seed,PTA):
-
-    #Create the universe
-    universe_i = Universe(Ω_power_law_index,Ω_min,Ω_max,M,seed) 
+def main():
+    """Main SGWB analysis pipeline"""
     
-    #Given this universe and these pulsars, what is a(t)?
-    SGWB = GW(universe_i,PTA)
-    a = SGWB.compute_a_jax()
-
-
-    #Get the two timeseries corresponding to the two pulsars
-    a1 = a[:,0]
-    a2 = a[:,1]
-
-    #Calculate the 1D product
-    ac = a1[0]
-    product = ac*a2 
-
-    #Calculate the 2D product
-    outer_product = np.outer(a1,a2)
-
-    return product,outer_product
-
-
-def pipeline(Tobs,dt,pulsar_seed,num_realisations,α,Ω_min,Ω_max,M):
-
-    #Choose the pulsars
-    pulsars = PTA(Tobs=Tobs,dt=dt,seed=pulsar_seed)
+    print("="*60)
+    print("STOCHASTIC GRAVITATIONAL WAVE BACKGROUND ANALYSIS")
+    print("="*60)
+    
+    # ==========================================
+    # SIMULATION PARAMETERS
+    # ==========================================
+    
+    # Physical constants
+    year = 3.154e7  # seconds
+    week = 604800   # seconds
+    
+    # Black hole population parameters
+    alpha = -3.0                    # Power law exponent for frequency distribution
+    Tobs = 10 * year               # Observation period (10 years)
+    dt = 1 * week                  # Cadence (1 week)
+    Ω_min = 1 / (10 * year)        # Minimum GW frequency (set by Tobs)
+    Ω_max = 1 / week               # Maximum GW frequency (set by dt)
+    M = int(1e4)                   # Number of GW sources
+    
+    # Analysis parameters
+    num_realisations = 1000        # Number of universe realizations
+    pulsar_seed = 1                # Seed for pulsar selection
+    
+    print(f"Simulation Parameters:")
+    print(f"  Observation time: {Tobs/year:.1f} years")
+    print(f"  Observation cadence: {dt/week:.1f} weeks")
+    print(f"  GW frequency range: [{Ω_min:.2e}, {Ω_max:.2e}] Hz")
+    print(f"  Number of GW sources: {M:,}")
+    print(f"  Power law exponent: α = {alpha}")
+    print(f"  Universe realizations: {num_realisations:,}")
+    print()
+    
+    # ==========================================
+    # PULSAR TIMING ARRAY SETUP
+    # ==========================================
+    
+    print("Setting up Pulsar Timing Array...")
+    pulsars = PTA(Tobs=Tobs, dt=dt, seed=pulsar_seed)
     num_times = len(pulsars.t)
-
-    array_1D = np.zeros((num_times,num_realisations)) #one timeseries for every seed. We will then average over this
-    array_2D = np.zeros((num_times,num_times)) #2D grid for a running sum
-
-    for i in tqdm(range(num_realisations)):
-        product,outer_product = _get_a_for_universe_i(α,Ω_min,Ω_max,M,i,pulsars)
-
-    array_1D[:,i] = product
-    array_2D += outer_product
-
-
-    return pulsars.t,array_1D,array_2D
-
     
-
-
-
-def plot_1d(t,array_1D,show_fig=True,save_fig=False):
-
-
-
-    #Setup the figure
-    h,w = 8,16
-    rows = 3
-    cols = 1
-    fig, (ax1,ax2,ax3) = plt.subplots(nrows=rows, ncols=cols, figsize=(h,w),sharey=False,sharex=True)
+    print(f"  Number of pulsars: {pulsars.Npsr}")
+    print(f"  Number of time samples: {num_times}")
+    print(f"  Time span: {pulsars.t[-1]/year:.1f} years")
+    print()
     
-    #t = t-t[0]
-    year = 365*24*3600
-    tplot = t / year
-
-
-    for i in range(array_1D.shape[-1]):
-        ax1.plot(tplot,array_1D[:,i])
-
-
-
-    av = np.mean(array_1D,axis=1)
-    sd = np.sqrt(np.var(array_1D,axis=1))
-
-
-    ax2.plot(tplot,av)
-    ax3.plot(tplot,sd)
-
+    # ==========================================
+    # STOCHASTIC BACKGROUND COMPUTATION
+    # ==========================================
     
-    ax1.set_xscale('log')
-    ax2.set_xscale('log')
-    ax3.set_xscale('log')
-
-
-
-    ax2.set_xlim(tplot[1],tplot[-1])
-
-
-
-    plt.subplots_adjust(hspace=0.05)
-
-
-
-    # #Tidy it up
-    fs=20
-    ax3.set_xlabel(r'$\tau$ [years]', fontsize=fs)
-   
-
-
-    ax1.set_ylabel(r'$L^{(j)}(\tau)$', fontsize=fs) 
-    ax2.set_ylabel(r'$L(\tau)$', fontsize=fs) 
-    ax3.set_ylabel(r'$ \sigma \left[ L(\tau) \right]$', fontsize=fs) 
-
-    for ax in fig.axes:
-        ax.xaxis.set_tick_params(labelsize=fs-4)
-        ax.yaxis.set_tick_params(labelsize=fs-4)
-        ax.set_xscale('log')
-
-    if save_fig:
-        import os
-        os.makedirs('outputs', exist_ok=True)
-        plt.savefig('outputs/plot_1d.png', dpi=300, bbox_inches='tight')
+    print("Computing stochastic gravitational wave background...")
+    print("(Using JAX-optimized GW calculations)")
     
-    if show_fig:
-        plt.show()
-    else:
-        plt.close()
-
-
-
-from labellines import labelLines 
-def plot_2d(t,array_2D,plot_points=False,num_contours=100,show_fig=True,save_fig=False):
-
-
-
-
-
-    #Setup the figure
-    h,w = 8,8
-    rows = 1
-    cols = 1
-    fig, ax1 = plt.subplots(nrows=rows, ncols=cols, figsize=(h,w))
-
-
-
-    xx_years = t / (365*24*3600) #cadence = 1 day
-    yy_years = t / (365*24*3600)
-
-
-    ax1.contour(xx_years, yy_years, array_2D, cmap='viridis',levels=num_contours)
-
-
-
-
-    def fixed_contour(x,c):
-        return x + c 
-
-    cs = [0,1,2,3]
-    ls = ['solid','dotted','dashed','dashdot']
-    for i in range(len(cs)):
-
-        y1 = fixed_contour(xx_years,cs[i])
-        ax1.plot(xx_years,y1,c='0.5', linestyle=ls[i],label=str(cs[i])+'yr')
-
-
-
-        y1 = fixed_contour(xx_years,-cs[i])
-        ax1.plot(xx_years,y1,c='0.5', linestyle=ls[i],label=str(cs[i])+'yr')
-
-    fs=20
-    ax1.xaxis.set_tick_params(labelsize=fs-4)
-    ax1.yaxis.set_tick_params(labelsize=fs-4)
-
-    ax1.set_ylim(0,10)
-    ax1.set_xlim(0,10)
-
-    ax1.set_xlabel(r'$t$ [years]', fontsize=fs)
-    ax1.set_ylabel(r"$t'$ [years]", fontsize=fs) 
-
-
-    if plot_points:
-        X,Y = np.meshgrid(xx_years,yy_years)
-        ax1.scatter(X.flatten(),Y.flatten(),s=2,marker='x')
-
+    # Initialize arrays for results
+    array_1D = np.zeros((num_times, num_realisations))  # Cross-correlation timeseries
+    array_2D = np.zeros((num_times, num_times))         # 2D correlation matrix
     
-    lines=plt.gca().get_lines()
-    xv = np.ones(len(lines))*5
-    labelLines(lines,align=True,xvals=xv,fontsize=fs-6)
-
-    if save_fig:
-        import os
-        os.makedirs('outputs', exist_ok=True)
-        plt.savefig('outputs/plot_2d.png', dpi=300, bbox_inches='tight')
+    # Main computation loop
+    print(f"Processing {num_realisations} universe realizations:")
     
-    if show_fig:
-        plt.show()
-    else:
-        plt.close()
+    for i in tqdm(range(num_realisations), desc="Realizations"):
+        # Generate universe realization with reproducible seed
+        universe_i = Universe(alpha, Ω_min, Ω_max, M, seed=i)
+        
+        # Compute gravitational wave signals at each pulsar
+        SGWB = GW(universe_i, pulsars)
+        a = SGWB.compute_a_jax()  # JAX-optimized computation
+        
+        # Extract signals for the two pulsars
+        a1 = a[:, 0]  # Pulsar 1 signal
+        a2 = a[:, 1]  # Pulsar 2 signal
+        
+        # Compute cross-correlation products
+        ac = a1[0]                              # Reference amplitude
+        product = ac * a2                       # 1D cross-correlation product
+        outer_product = np.outer(a1, a2)       # 2D correlation matrix
+        
+        # Store results
+        array_1D[:, i] = product
+        array_2D += outer_product
+    
+    print("✓ Computation completed successfully")
+    print()
+    
+    # ==========================================
+    # STATISTICAL ANALYSIS
+    # ==========================================
+    
+    print("Statistical Analysis:")
+    
+    # 1D statistics
+    mean_1D = np.mean(array_1D, axis=1)
+    std_1D = np.std(array_1D, axis=1)
+    
+    print(f"  1D Cross-correlation:")
+    print(f"    Mean amplitude: {np.mean(np.abs(mean_1D)):.2e}")
+    print(f"    RMS variability: {np.mean(std_1D):.2e}")
+    
+    # 2D statistics
+    array_2D_normalized = array_2D / num_realisations
+    
+    print(f"  2D Correlation matrix:")
+    print(f"    Matrix size: {array_2D.shape[0]} × {array_2D.shape[1]}")
+    print(f"    Mean value: {np.mean(array_2D_normalized):.2e}")
+    print(f"    Max value: {np.max(array_2D_normalized):.2e}")
+    print()
+    
+    # ==========================================
+    # RESULTS AND PLOTTING
+    # ==========================================
+    
+    print("Generating plots...")
+    print("  Saving plot_1d.png (cross-correlation analysis)")
+    print("  Saving plot_2d.png (correlation matrix)")
+    
+    # Generate plots (save to outputs/ directory)
+    plot_1d(pulsars.t, array_1D, show_fig=False, save_fig=True)
+    plot_2d(pulsars.t, array_2D, show_fig=False, save_fig=True)
+    
+    print("✓ Plots saved to outputs/ directory")
+    print()
+    
+    print("="*60)
+    print("ANALYSIS COMPLETE")
+    print("="*60)
+    print(f"Results saved:")
+    print(f"  • outputs/plot_1d.png - Cross-correlation timeseries analysis")
+    print(f"  • outputs/plot_2d.png - 2D correlation matrix")
+    print()
 
-
-
-
-
-
-
-
-
-
-
-#some useful quantities
-year = 3.154e7 # in seconds
-week = 604800  # in seconds
-
-#Read in command line arguments
-Tobs_years       = 10.0
-dt_weeks         = 1.0
-pulsar_seed      = 1
-num_realisations = 1000
-M                = 10000
-α                = -3.0 #Exponent of the power law for the PDF of Ω
-
-
-#Any necessary conversions
-Tobs        = Tobs_years*year 
-dt          = dt_weeks * week
-Ω_min       = 1/(Tobs) 
-Ω_max       = 1/(dt)
-
-#Run the pipeline 
-print(f"Creating {num_realisations} realisations of the stochastic GW background")
-print(f"Parameters of the BH probability distribution are α ={α}, Ω_min= {Ω_min}, Ω_max= {Ω_max}")
-t,array_1D,array_2D = pipeline(Tobs,dt,pulsar_seed,num_realisations,α,Ω_min,Ω_max,M)
-
-plot_1d(t,array_1D,show_fig=True,save_fig=True)
-plot_2d(t,array_2D,show_fig=True,save_fig=True)
-
-
-
+if __name__ == "__main__":
+    main()
