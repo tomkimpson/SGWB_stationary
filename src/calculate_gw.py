@@ -40,6 +40,7 @@ class GW:
         gw_direction        = np.cross(m,n)                                     # The direction of each source. Shape (,3)
         e_plus,e_cross      = polarisation_tensors(m.T,n.T)                     # The polarization tensors. Shape (3,3,K)
         hp,hx               = h_amplitudes(self.h,self.ι)                       # The plus and cross amplitudes. Can also do h_amplitudes(h*Ω**(2/3),ι) to add a frequency dependence
+        
         dot_product         = 1.0 + self.q @ gw_direction.T                     # Shape (N,M)
 
 
